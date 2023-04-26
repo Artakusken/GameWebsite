@@ -1,3 +1,5 @@
+import datetime
+
 from flask import jsonify
 from flask_restful import Resource
 
@@ -32,17 +34,18 @@ def card_params_list(params, ses):
 
 
 class DeckResource(Resource):
-    def create_deck(self, cards_ids):
+    def get_deck_cards(self, cards_ids):
         global_init("cards")
         session = create_session()
         cards = []
-        for card_id in [int(i) for i in cards_ids.split(";")]:
+        all_id = [int(i) for i in cards_ids.split(";")]
+        for card_id in all_id:
             params = session.query(CardsParams).filter(CardsParams.id == card_id).first()
             cards.append(card_params_list(params, session))
         return cards
 
     def get(self, deck_cards):
-        return jsonify(self.create_deck(deck_cards))
+        return jsonify(self.get_deck_cards(deck_cards))
 
 
 class CardsResource(Resource):
@@ -61,28 +64,51 @@ class CardsResource(Resource):
 class PlayerResource(Resource):
     game_version = None
 
-    def get(self, email, password, cid, conn_type):
+    def get(self, email, password, cid, conn_type, enter):
         global_init("users")
         session = create_session()
         if conn_type == "in_email":
             player = session.query(User).filter(User.email == email).first()
-        elif conn_type == "in_cid":
+        elif conn_type == "in_cid" or conn_type == "out":
             player = session.query(User).filter(User.client_id == int(cid)).first()
         if player:
             if player.game_version != self.game_version:
                 return jsonify(f"Версия игры должна быть {self.game_version}. Ваша {player.game_version}")
             if conn_type == "in_cid":
-                player.online = 1
+                if enter == "1":
+                    player.online = 1
+                    player.online_check = datetime.datetime.now()
                 session.commit()
                 return jsonify([player.id, player.nickname, player.client_id])
             if player.check_password(password):
                 if conn_type == "in_email":
-                    player.online = 1
+                    if enter == "1":
+                        player.online = 1
+                        player.online_check = datetime.datetime.now()
                     session.commit()
                     return jsonify([player.id, player.nickname, player.client_id])
-                elif conn_type == "out":
-                    player.online = 0
-                    session.commit()
-                    return
+            if conn_type == "out":
+                player.online = 0
+                session.commit()
+                return
             return jsonify("Неверный пароль")
         return jsonify("Игрока с данной почтой не существует")
+
+    def put(self, email, password, cid, conn_type, enter):
+        global_init("users")
+        session = create_session()
+        if conn_type == "in_email":
+            player = session.query(User).filter(User.email == email).first()
+        elif conn_type == "in_cid" or conn_type == "out":
+            player = session.query(User).filter(User.client_id == int(cid)).first()
+        if enter == "start_the_game":
+            player.is_playing = 1
+            player.ready_to_play = 0
+        elif enter == "end_the_game":
+            player.is_playing = 0
+            player.ready_to_play = 0
+        elif enter == "find_opponents":
+            player.ready_to_play = 1
+        elif enter == "stop_find_opponents":
+            player.ready_to_play = 0
+        session.commit()

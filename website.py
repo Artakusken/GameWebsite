@@ -4,7 +4,7 @@ from flask_wtf import FlaskForm
 from wtforms import PasswordField, StringField, BooleanField, SubmitField, EmailField, IntegerField
 from wtforms.validators import DataRequired
 from flask_restful import reqparse, abort, Api, Resource
-
+from flask_apscheduler import APScheduler
 
 from game_resources import *
 # server = "192.168.0.195"
@@ -17,7 +17,24 @@ site.config["SECRET_KEY"] = "Github"
 log_mg = LoginManager()
 log_mg.init_app(site)
 PlayerResource.game_version = VERSION
-USERS_ONLINE = {}
+
+
+def check_users_connections():
+    global_init("users")
+    session = create_session()
+    all_online_users = session.query(User).filter(User.online == 1).all()
+    for user in all_online_users:
+        since_last_check = datetime.datetime.now() - user.online_check
+        if since_last_check.total_seconds() > 30:
+            user.online = 0
+    session.commit()
+
+
+scheduler = APScheduler()
+scheduler.init_app(site)
+scheduler.start()
+scheduler.add_job(id='test-job', func=check_users_connections, trigger='interval', seconds=30)
+
 
 class RegistrationForm(FlaskForm):
     email = EmailField('Почта', validators=[DataRequired()])
@@ -62,9 +79,8 @@ def reqister():
                                    form=form,
                                    message="Такой никнейм уже занят")
         all_used_client_id = [user.client_id for user in session.query(User).all()]
-        print(all_used_client_id)
         new_client_id = random.randint(1_010_010, 9_909_900)
-        while new_client_id not in all_used_client_id:
+        while new_client_id in all_used_client_id:
             new_client_id = random.randint(1_010_010, 9_909_900)
         user = User(
             nickname=form.nickname.data,
@@ -101,12 +117,6 @@ def login():
     return render_template('login.html', title='Авторизация', form=form)
 
 
-@site.route('/connection/<id>')
-def check_connection(id):
-    # global_init("users")
-    # session = create_session()
-    USERS_ONLINE[id] = 0
-
 @site.route('/logout')
 @login_required
 def logout():
@@ -126,10 +136,22 @@ def statistic(username):
     return render_template('error_page.html', title='Профиль не найден')
 
 
+@site.route('/session/<id>')
+def online_assurance(id):
+    global_init("users")
+    session = create_session()
+    user = session.query(User).get(id)
+    if user:
+        user.online_check = datetime.datetime.now()
+        session.commit()
+        return {"200 OK": user.online_check}
+    return {"404": f"no user with id == {id}"}
+
+
 if __name__ == '__main__':
 
     api.add_resource(DeckResource, '/api/v2/my_deck/<deck_cards>')
     api.add_resource(CardsResource, '/api/v2/my_deck/constructor')
-    api.add_resource(PlayerResource, '/api/v2/player/<email>&<password>&<cid>&<conn_type>')
+    api.add_resource(PlayerResource, '/api/v2/player/<email>&<password>&<cid>&<conn_type>&<enter>')
 
     site.run(port=port, host=server)

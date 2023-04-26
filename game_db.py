@@ -1,7 +1,7 @@
 import sqlalchemy
 import sqlalchemy as sa
 import sqlalchemy.orm as orm
-from sqlalchemy.orm import Session, declarative_base
+import datetime
 from sqlalchemy_serializer import SerializerMixin
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -49,6 +49,9 @@ class User(UsersBase, UserMixin, SerializerMixin):
     client_id = sa.Column(sa.Integer, default=0)
     game_version = sa.Column(sa.String, default="0.01")
     online = sa.Column(sa.Integer, default=0)
+    online_check = sqlalchemy.Column(sqlalchemy.DateTime)
+    is_playing = sa.Column(sa.Integer, default=0)
+    ready_to_play = sa.Column(sa.Integer, default=0)
     games = sa.Column(sa.Integer, default=0)
     wins = sa.Column(sa.Integer, default=0)
     loses = sa.Column(sa.Integer, default=0)
