@@ -27,6 +27,8 @@ def check_users_connections():
         since_last_check = datetime.datetime.now() - user.online_check
         if since_last_check.total_seconds() > 30:
             user.online = 0
+            user.is_playing = 0
+            user.ready_to_play = 0
     session.commit()
 
 
@@ -153,5 +155,6 @@ if __name__ == '__main__':
     api.add_resource(DeckResource, '/api/v2/my_deck/<deck_cards>')
     api.add_resource(CardsResource, '/api/v2/my_deck/constructor')
     api.add_resource(PlayerResource, '/api/v2/player/<email>&<password>&<cid>&<conn_type>&<enter>')
+    api.add_resource(GameResource, '/api/v2/session/<id>&<pl_points>&<op_points>&<fraction>&<premature_exit>&<exit>')
 
     site.run(port=port, host=server)

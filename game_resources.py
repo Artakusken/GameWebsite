@@ -89,6 +89,8 @@ class PlayerResource(Resource):
                     return jsonify([player.id, player.nickname, player.client_id])
             if conn_type == "out":
                 player.online = 0
+                player.is_playing = 0
+                player.ready_to_play = 0
                 session.commit()
                 return
             return jsonify("Неверный пароль")
@@ -111,4 +113,30 @@ class PlayerResource(Resource):
             player.ready_to_play = 1
         elif enter == "stop_find_opponents":
             player.ready_to_play = 0
+        session.commit()
+
+
+class GameResource(Resource):
+    def put(self, id, pl_points, op_points, fraction, premature_exit, exit):
+        global_init("users")
+        session = create_session()
+        player = session.query(User).get(id)
+        if exit == "1":
+            if premature_exit == "1":
+                player.loses += 1
+            else:
+                if pl_points > op_points:
+                    player.wins += 1
+                elif pl_points < op_points:
+                    player.loses += 1
+                else:
+                    player.draws += 1
+            if fraction == "Нильфгаард":
+                player.nilfgaard_games = player.nilfgaard_games + 1
+            elif fraction == "Королевства Севера":
+                player.northern_realms_games = player.northern_realms_games + 1
+            elif fraction == "Скоятаэли":
+                player.scoiatael_games = player.scoiatael_games + 1
+
+            player.games += 1
         session.commit()

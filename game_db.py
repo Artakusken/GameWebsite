@@ -58,7 +58,7 @@ class User(UsersBase, UserMixin, SerializerMixin):
     draws = sa.Column(sa.Integer, default=0)
     nilfgaard_games = sa.Column(sa.Integer, default=0)
     northern_realms_games = sa.Column(sa.Integer, default=0)
-    skoiatoeli_games = sa.Column(sa.Integer, default=0)
+    scoiatael_games = sa.Column(sa.Integer, default=0)
 
     def set_password(self, password):
         self.hashed_password = generate_password_hash(password)
